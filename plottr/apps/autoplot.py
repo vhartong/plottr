@@ -5,7 +5,8 @@ plottr/apps/autoplot.py : tools for simple automatic plotting.
 import logging
 import os
 import time
-from typing import Union, Tuple
+import argparse
+from typing import Union, Tuple, Optional, Type, List
 
 from .. import QtGui, QtCore, Flowchart, Signal, Slot
 from .. import log as plottrlog
@@ -19,7 +20,9 @@ from ..node.dim_reducer import XYSelector
 from ..node.filter.correct_offset import SubtractAverage
 from ..node.grid import DataGridder, GridOption
 from ..node.tools import linearFlowchart
+from ..node.node import Node
 from ..plot import PlotNode, makeFlowchartWithPlot
+from ..utils.misc import unwrap_optional
 
 __author__ = 'Wolfgang Pfaff'
 __license__ = 'MIT'
@@ -35,7 +38,7 @@ def logger():
 
 
 def autoplot(inputData: Union[None, DataDictBase] = None) \
-        -> (Flowchart, 'AutoPlotMainWindow'):
+        -> Tuple[Flowchart, 'AutoPlotMainWindow']:
     """
     Sets up a simple flowchart consisting of a data selector, gridder,
     an xy-axes selector, and creates a GUI together with an autoplot
@@ -44,7 +47,7 @@ def autoplot(inputData: Union[None, DataDictBase] = None) \
     :returns: the flowchart object and the dialog widget
     """
 
-    nodes = [
+    nodes: List[Tuple[str, Type[Node]]] = [
         ('Data selection', DataSelector),
         ('Grid', DataGridder),
         ('Dimension assignment', XYSelector),
@@ -120,6 +123,9 @@ class UpdateToolBar(QtGui.QToolBar):
 
 class AutoPlotMainWindow(PlotWindow):
 
+    #: Signal() -- emitted when the window is closed
+    windowClosed = Signal()
+
     def __init__(self, fc: Flowchart,
                  parent: Union[QtGui.QWidget, None] = None,
                  monitor: bool = False,
@@ -158,7 +164,7 @@ class AutoPlotMainWindow(PlotWindow):
 
         # add monitor if needed
         if monitor:
-            self.monitorToolBar = UpdateToolBar('Monitor data')
+            self.monitorToolBar: Optional[UpdateToolBar] = UpdateToolBar('Monitor data')
             self.addToolBar(self.monitorToolBar)
             self.monitorToolBar.trigger.connect(self.refreshData)
             if monitorInterval is not None:
@@ -177,6 +183,8 @@ class AutoPlotMainWindow(PlotWindow):
         """
         if self.monitorToolBar is not None:
             self.monitorToolBar.stop()
+        self.windowClosed.emit()
+        return event.accept()
 
     def showTime(self):
         """
@@ -230,7 +238,7 @@ class AutoPlotMainWindow(PlotWindow):
         self.fc.nodes()['Data selection'].selectedData = selected
         self.fc.nodes()['Grid'].grid = GridOption.guessShape, {}
         self.fc.nodes()['Dimension assignment'].dimensionRoles = drs
-        self.plotWidget.plot.draw()
+        unwrap_optional(self.plotWidget).plot.draw()
 
 
 class QCAutoPlotMainWindow(AutoPlotMainWindow):
@@ -263,10 +271,9 @@ class QCAutoPlotMainWindow(AutoPlotMainWindow):
             self._initialized = True
 
 
-
 def autoplotQcodesDataset(log: bool = False,
                           pathAndId: Union[Tuple[str, int], None] = None) \
-        -> (Flowchart, QCAutoPlotMainWindow):
+        -> Tuple[Flowchart, QCAutoPlotMainWindow]:
     """
     Sets up a simple flowchart consisting of a data selector,
     an xy-axes selector, and creates a GUI together with an autoplot
@@ -301,24 +308,44 @@ def autoplotQcodesDataset(log: bool = False,
 
 
 def autoplotDDH5(filepath: str = '', groupname: str = 'data') \
-        -> (Flowchart, AutoPlotMainWindow):
+        -> Tuple[Flowchart, AutoPlotMainWindow]:
+
     fc = linearFlowchart(
         ('Data loader', DDH5Loader),
         ('Data selection', DataSelector),
         ('Grid', DataGridder),
         ('Dimension assignment', XYSelector),
-        ('Subtract average', SubtractAverage),
+        # ('Subtract average', SubtractAverage),
         ('plot', PlotNode)
     )
 
-    win = AutoPlotMainWindow(fc)
+    win = AutoPlotMainWindow(fc, loaderName='Data loader', monitor=True,
+                             monitorInterval=2)
     win.show()
 
     fc.nodes()['Data loader'].filepath = filepath
     fc.nodes()['Data loader'].groupname = groupname
-    if fc.nodes()['Data loader'].nLoadedRecords > 0:
-        win.setDefaults()
-
+    win.refreshData()
     win.setMonitorInterval(2)
 
     return fc, win
+
+
+def main(f, g):
+    app = QtGui.QApplication([])
+    fc, win = autoplotDDH5(f, g)
+
+    return app.exec_()
+
+
+def script():
+    parser = argparse.ArgumentParser(
+        description='plottr autoplot .dd.h5 files.'
+    )
+    parser.add_argument('--filepath', help='path to .dd.h5 file',
+                        default='')
+    parser.add_argument('--groupname', help='group in the hdf5 file',
+                        default='data')
+    args = parser.parse_args()
+
+    main(args.filepath, args.groupname)

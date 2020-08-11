@@ -218,14 +218,14 @@ class DimensionAssignmentWidget(QtGui.QTreeWidget):
                 'options' : {},
             }
 
-    def getRole(self, name: str) -> Tuple[str, Any]:
+    def getRole(self, name: str) -> Tuple[str, Dict]:
         """
         Get the current role and its options for a dimension.
         :param name: 
         :return: 
         """
         role = self.choices[name]['roleSelectionWidget'].currentText()
-        opts = {}
+        opts: Dict = {}
         return role, opts
 
     def getRoles(self) -> Dict[str, Dict[str, Any]]:
@@ -435,7 +435,7 @@ class DimensionReducer(Node):
     def reductions(self):
         return self._reductions
 
-    @reductions.setter
+    @reductions.setter  # type: ignore[misc]
     @updateOption('reductions')
     def reductions(self, val):
         self._reductions = val
@@ -444,7 +444,7 @@ class DimensionReducer(Node):
     def targetNames(self):
         return self._targetNames
 
-    @targetNames.setter
+    @targetNames.setter  # type: ignore[misc]
     @updateOption()
     def targetNames(self, val):
         self._targetNames = val
@@ -669,7 +669,7 @@ class XYSelector(DimensionReducer):
     def xyAxes(self):
         return self._xyAxes
 
-    @xyAxes.setter
+    @xyAxes.setter  # type: ignore[misc]
     @updateOption('xyAxes')
     def xyAxes(self, val):
         self._xyAxes = val
@@ -685,7 +685,7 @@ class XYSelector(DimensionReducer):
             dr[dim] = red
         return dr
 
-    @dimensionRoles.setter
+    @dimensionRoles.setter  # type: ignore[misc]
     @updateOption('dimensionRoles')
     def dimensionRoles(self, val):
         xy = [None, None]

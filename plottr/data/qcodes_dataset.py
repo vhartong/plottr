@@ -73,14 +73,14 @@ def get_ds_structure(ds: 'DataSet'):
     return structure
 
 
-def get_ds_info(ds: 'DataSet', get_structure: bool = True) -> Dict[str, str]:
+def get_ds_info(ds: 'DataSet', get_structure: bool = True) -> Dict[str, Union[str,int]]:
     """
     Get some info on a DataSet in dict.
 
     if get_structure is True: return the datastructure in that dataset
     as well (key is `structure' then).
     """
-    ret = {}
+    ret: Dict[str, Union[str, int]] = {}
     ret['experiment'] = ds.exp_name
     ret['sample'] = ds.sample_name
     ret['name'] = ds.name
@@ -105,6 +105,7 @@ def get_ds_info(ds: 'DataSet', get_structure: bool = True) -> Dict[str, str]:
         ret['structure'] = get_ds_structure(ds)
 
     ret['records'] = ds.number_of_results
+    ret['guid'] = ds.guid
 
     return ret
 
@@ -214,7 +215,8 @@ class QCodesDSLoader(Node):
     def pathAndId(self):
         return self._pathAndId
 
-    @pathAndId.setter
+    # see https://github.com/python/mypy/issues/1362
+    @pathAndId.setter  # type: ignore
     @updateOption('pathAndId')
     def pathAndId(self, val):
         if val != self.pathAndId:

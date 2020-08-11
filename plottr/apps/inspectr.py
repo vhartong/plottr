@@ -14,6 +14,8 @@ data. it relies on the public qcodes API to get its information.
 
 import os
 import time
+import sys
+import argparse
 
 from pyqtgraph.Qt import QtGui, QtCore
 
@@ -120,7 +122,7 @@ class SortableTreeWidgetItem(QtGui.QTreeWidgetItem):
 class RunList(QtGui.QTreeWidget):
     """Shows the list of runs for a given date selection."""
 
-    cols = ['Run ID', 'Experiment', 'Sample', 'Name', 'Started', 'Completed', 'Records']
+    cols = ['Run ID', 'Experiment', 'Sample', 'Name', 'Started', 'Completed', 'Records', 'GUID']
 
     runSelected = QtCore.pyqtSignal(int)
     runActivated = QtCore.pyqtSignal(int)
@@ -142,6 +144,7 @@ class RunList(QtGui.QTreeWidget):
         lst.append(vals.get('started date', '') + ' ' + vals.get('started time', ''))
         lst.append(vals.get('completed date', '') + ' ' + vals.get('completed time', ''))
         lst.append(str(vals.get('records', '')))
+        lst.append(vals.get('guid', ''))
 
         item = SortableTreeWidgetItem(lst)
         self.addTopLevelItem(item)
@@ -477,3 +480,22 @@ class QCodesDBInspector(QtGui.QMainWindow):
 def inspectr(dbPath: str = None):
     win = QCodesDBInspector(dbPath=dbPath)
     return win
+
+
+def main(dbPath):
+    app = QtGui.QApplication([])
+    plottrlog.enableStreamHandler(True)
+
+    win = inspectr(dbPath=dbPath)
+    win.show()
+
+    if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
+        QtGui.QApplication.instance().exec_()
+
+
+def script():
+    parser = argparse.ArgumentParser(description='inspectr -- sifting through qcodes data.')
+    parser.add_argument('--dbpath', help='path to qcodes .db file',
+                        default=None)
+    args = parser.parse_args()
+    main(args.dbpath)
